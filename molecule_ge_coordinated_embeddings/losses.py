@@ -1,6 +1,21 @@
 import torch
 import torch.nn as nn
 
+class ClassificationLoss(nn.Module):
+    # Adapted from:  https://github.com/suruoxi/DistanceWeightedSampling/blob/master/model.py
+    def __init__(self, in_dim, reduction='mean', pos_weight=None):
+        super().__init__()
+        self.classifier = nn.Linear(2*in_dim, 1) # (for anchors + positives / anchors + negatives)
+        self.loss = nn.BCEWithLogitsLoss(reduction=reduction, pos_weight=pos_weight)
+
+    def forward(self, anchors, positives, negatives):
+        pos_logits = self.classifier(torch.cat((anchors, positives), dim=1))
+        neg_logits = self.classifier(torch.cat((anchors, negatives), dim=1))
+
+        pos_loss = self.loss(pos_logits, torch.ones_like(pos_logits))
+        neg_loss = self.loss(neg_logits, torch.zeros_like(neg_logits))
+        
+        return pos_loss + neg_loss
 
 class TripletMarginLoss_WU(nn.Module):
     # Adapted from:  https://github.com/suruoxi/DistanceWeightedSampling/blob/master/model.py
